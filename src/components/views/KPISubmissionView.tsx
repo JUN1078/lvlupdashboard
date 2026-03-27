@@ -918,18 +918,6 @@ function DevReportView({ quarter }: { quarter: 'Q1'|'Q2'|'Q3'|'Q4' }) {
 
     const descText = descriptions[selectedMember] || '<em style="color:#9ca3af">No development notes provided.</em>';
 
-    const divAvg = Math.round(TEAM_PERFORMANCE.reduce((s,m)=>s+m.overall,0)/TEAM_PERFORMANCE.length);
-    const divOKR = Math.round(TEAM_PERFORMANCE.reduce((s,m)=>s+m.okrScore,0)/TEAM_PERFORMANCE.length);
-    const divRows = TEAM_PERFORMANCE.map(m => {
-      const c = m.overall>=85?'#3b82f6':m.overall>=80?'#22c55e':m.overall>=70?'#f59e0b':'#ef4444';
-      const isSelf = m.id===selectedMember;
-      return `<tr style="background:${isSelf?'#eff6ff':'transparent'}">
-        <td style="padding:5px 10px;font-size:12px;color:#374151;font-weight:${isSelf?'700':'400'};border-bottom:1px solid #f3f4f6">${m.name}${isSelf?' ◀':''}</td>
-        <td style="padding:5px 10px;border-bottom:1px solid #f3f4f6">${bar(m.overall,100,c)}</td>
-        <td style="padding:5px 10px;text-align:right;font-weight:700;color:${c};font-size:13px;border-bottom:1px solid #f3f4f6">${m.overall}</td>
-      </tr>`;
-    }).join('');
-
     const tc = tierColor[perf.tier??'On Track']??'#f59e0b';
     const sc = perf.overall>=85?'#3b82f6':perf.overall>=80?'#22c55e':perf.overall>=70?'#f59e0b':'#ef4444';
 
@@ -1017,22 +1005,6 @@ function DevReportView({ quarter }: { quarter: 'Q1'|'Q2'|'Q3'|'Q4' }) {
       </tr></tfoot>
     </table>
   </div>`:''}
-
-  <!-- Division Overview -->
-  <div class="section">
-    <h2>🏢 Division Performance Overview</h2>
-    <div style="display:flex;gap:16px;margin-bottom:12px">
-      <div style="flex:1;padding:12px;background:#f1f5f9;border-radius:8px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:#111827">${divAvg}</div>
-        <div style="font-size:11px;color:#9ca3af">Division Avg Score</div>
-      </div>
-      <div style="flex:1;padding:12px;background:#f1f5f9;border-radius:8px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:#10b981">${divOKR}%</div>
-        <div style="font-size:11px;color:#9ca3af">Avg OKR Achievement</div>
-      </div>
-    </div>
-    <table><tbody>${divRows}</tbody></table>
-  </div>
 
   <!-- Next Actions -->
   <div class="section">
@@ -1208,15 +1180,13 @@ function DevReportView({ quarter }: { quarter: 'Q1'|'Q2'|'Q3'|'Q4' }) {
             </div>
           )}
 
-          {/* ── Row 4: 360° Feedback + Division Overview ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* 360° Feedback */}
-            {feedback && (
-              <div className="rounded-xl border border-surface-500 bg-[#161b27] px-4 py-3">
-                <h3 className="text-xs font-semibold text-white mb-3">🔄 360° Competency Feedback</h3>
-                <div className="space-y-2">
-                  {([
-                    ['Leadership', feedback.leadership],
+          {/* ── Row 4: 360° Feedback ── */}
+          {feedback && (
+            <div className="rounded-xl border border-surface-500 bg-[#161b27] px-4 py-3">
+              <h3 className="text-xs font-semibold text-white mb-3">🔄 360° Competency Feedback</h3>
+              <div className="space-y-2">
+                {([
+                  ['Leadership', feedback.leadership],
                     ['Communication', feedback.communication],
                     ['Teamwork', feedback.teamwork],
                     ['Technical', feedback.technical],
@@ -1237,32 +1207,7 @@ function DevReportView({ quarter }: { quarter: 'Q1'|'Q2'|'Q3'|'Q4' }) {
                   </div>
                 </div>
               </div>
-            )}
-
-            {/* Division Overview */}
-            <div className="rounded-xl border border-surface-500 bg-[#161b27] px-4 py-3">
-              <h3 className="text-xs font-semibold text-white mb-3">🏢 Division Overview</h3>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-2 text-center">
-                  <div className="text-base font-bold text-white">{Math.round(TEAM_PERFORMANCE.reduce((s, m) => s + m.overall, 0) / TEAM_PERFORMANCE.length)}</div>
-                  <div className="text-[9px] text-slate-500 mt-0.5">Div Avg Score</div>
-                </div>
-                <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-2 text-center">
-                  <div className="text-base font-bold text-emerald-400">{Math.round(TEAM_PERFORMANCE.reduce((s, m) => s + m.okrScore, 0) / TEAM_PERFORMANCE.length)}%</div>
-                  <div className="text-[9px] text-slate-500 mt-0.5">Avg OKR</div>
-                </div>
-              </div>
-              <div className="space-y-1">
-                {TEAM_PERFORMANCE.map(m => (
-                  <div key={m.id} className={clsx('flex items-center gap-2 px-2 py-1 rounded-lg', m.id === selectedMember ? 'bg-brand-500/10 border border-brand-500/20' : 'bg-slate-800/20')}>
-                    <span className="text-[10px] text-slate-300 w-20 shrink-0 truncate">{m.name.split(' ')[0]}</span>
-                    {scoreBar(m.overall, 100, m.overall >= 85 ? 'bg-blue-500' : m.overall >= 80 ? 'bg-green-500' : m.overall >= 70 ? 'bg-amber-500' : 'bg-red-500')}
-                    <span className={clsx('text-[10px] font-bold w-6 text-right shrink-0', m.overall >= 85 ? 'text-blue-400' : m.overall >= 80 ? 'text-green-400' : m.overall >= 70 ? 'text-amber-400' : 'text-red-400')}>{m.overall}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* ── Next Actions (Editable) ── */}
           <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 px-4 py-4">
