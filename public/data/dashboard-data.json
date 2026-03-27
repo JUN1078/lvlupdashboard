@@ -1,0 +1,143 @@
+{
+  "metadata": {
+    "reportDate": "2026-02-24",
+    "dataStatus": "Final",
+    "lastUpdated": "2026-02-24T08:00:00Z",
+    "currency": "IDR",
+    "fiscalYear": 2026
+  },
+  "scenarios": {
+    "conservative": {
+      "label": "Conservative",
+      "quarterlyTargets": {
+        "Q1": 2100000000,
+        "Q2": 2200000000,
+        "Q3": 2400000000,
+        "Q4": 3000000000
+      }
+    },
+    "base": {
+      "label": "Base",
+      "quarterlyTargets": {
+        "Q1": 2800000000,
+        "Q2": 3100000000,
+        "Q3": 3500000000,
+        "Q4": 4200000000
+      }
+    },
+    "aggressive": {
+      "label": "Aggressive",
+      "quarterlyTargets": {
+        "Q1": 3500000000,
+        "Q2": 4000000000,
+        "Q3": 4500000000,
+        "Q4": 4500000000
+      }
+    }
+  },
+  "quarters": {
+    "Q1": {
+      "actualRevenue": 2450000000,
+      "openPipeline": 1100000000,
+      "closedWonDeals": 14,
+      "isCurrent": false,
+      "isForecast": false
+    },
+    "Q2": {
+      "actualRevenue": 2580000000,
+      "openPipeline": 3600000000,
+      "closedWonDeals": 18,
+      "isCurrent": true,
+      "isForecast": false
+    },
+    "Q3": {
+      "actualRevenue": 0,
+      "openPipeline": 5200000000,
+      "closedWonDeals": 0,
+      "isCurrent": false,
+      "isForecast": true
+    },
+    "Q4": {
+      "actualRevenue": 0,
+      "openPipeline": 4100000000,
+      "closedWonDeals": 0,
+      "isCurrent": false,
+      "isForecast": true
+    }
+  },
+  "opportunities": {
+    "avgDealSize": 150000000,
+    "overallWinRate": 0.28,
+    "conversionRateLeadToOpp": 0.18,
+    "stages": [
+      { "name": "Prospect",    "count": 84, "totalValue": 12600000000 },
+      { "name": "Qualified",   "count": 52, "totalValue":  7800000000 },
+      { "name": "Discovery",   "count": 38, "totalValue":  5700000000 },
+      { "name": "Proposal",    "count": 24, "totalValue":  3600000000 },
+      { "name": "Negotiation", "count": 15, "totalValue":  2250000000 },
+      { "name": "Closing",     "count": 8,  "totalValue":  1200000000 }
+    ]
+  },
+  "leads": {
+    "inboundFraction": 0.60,
+    "outboundFraction": 0.40,
+    "channels": [
+      {
+        "name": "Organic Search",
+        "type": "inbound",
+        "monthlyLeads": 420,
+        "costPerLead": 270000,
+        "conversionRate": 0.22,
+        "status": "active"
+      },
+      {
+        "name": "Paid Search",
+        "type": "inbound",
+        "monthlyLeads": 310,
+        "costPerLead": 950000,
+        "conversionRate": 0.19,
+        "status": "active"
+      },
+      {
+        "name": "Content / Blog",
+        "type": "inbound",
+        "monthlyLeads": 180,
+        "costPerLead": 330000,
+        "conversionRate": 0.15,
+        "status": "active"
+      },
+      {
+        "name": "LinkedIn Ads",
+        "type": "outbound",
+        "monthlyLeads": 95,
+        "costPerLead": 1650000,
+        "conversionRate": 0.24,
+        "status": "active"
+      },
+      {
+        "name": "Cold Outreach",
+        "type": "outbound",
+        "monthlyLeads": 200,
+        "costPerLead": 520000,
+        "conversionRate": 0.12,
+        "status": "active"
+      },
+      {
+        "name": "Events / Webinars",
+        "type": "outbound",
+        "monthlyLeads": 60,
+        "costPerLead": 2700000,
+        "conversionRate": 0.30,
+        "status": "active"
+      },
+      {
+        "name": "Referral",
+        "type": "inbound",
+        "monthlyLeads": 45,
+        "costPerLead": 180000,
+        "conversionRate": 0.42,
+        "status": "active"
+      }
+    ]
+  }
+}
