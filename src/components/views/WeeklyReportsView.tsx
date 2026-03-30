@@ -4,7 +4,7 @@ import type { WeeklyReport, OKRItem, QuestUpdateItem, ReportHistoryEntry } from 
 import { generateReportInsight, type ReportInsight } from '../../utils/ai-insight';
 import { notionSearch, extractTitle, extractSelect, extractRichText } from '../../utils/notion-api';
 
-const LS_KEY = 'reports_data_v2';
+const LS_KEY = 'reports_data_v3';
 const HISTORY_LS_KEY = 'reports_history';
 const HIDDEN_LS_KEY = 'reports_hidden_sections';
 const NOTION_TOKEN = import.meta.env.VITE_NOTION_TOKEN as string || '';
