@@ -188,6 +188,65 @@ export function WeeklyReportsView({ initialReports }: Props) {
     }
   };
 
+  const exportToHTML = () => {
+    if (!selected) return;
+    const m = selected.quantitativeMetrics;
+    const th = 'background:#1a1f2e;color:#94a3b8;padding:8px 12px;text-align:left;border:1px solid #334155;font-size:11px;text-transform:uppercase;';
+    const td = 'padding:8px 12px;border:1px solid #334155;color:#e2e8f0;font-size:12px;';
+    const tbl = 'width:100%;border-collapse:collapse;margin:10px 0;';
+    const sec = (t: string) => `<h2 style="color:#f8fafc;font-size:15px;margin:20px 0 6px;padding-bottom:4px;border-bottom:2px solid #ef4444;">${t}</h2>`;
+    const metric = (label: string, val: string, sub: string, color: string) =>
+      `<div style="background:#1a1f2e;border:1px solid #334155;border-radius:8px;padding:12px 16px;text-align:center;"><p style="color:#94a3b8;font-size:10px;margin:0 0 4px;">${label}</p><p style="color:${color};font-size:18px;font-weight:700;margin:0;">${val}</p><p style="color:#64748b;font-size:10px;margin:4px 0 0;">${sub}</p></div>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${selected.title}</title>
+<style>body{font-family:'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;padding:40px;max-width:1100px;margin:0 auto;line-height:1.6;}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0;}@media print{body{background:#fff;color:#111;} td,th{color:#111 !important;border-color:#ccc !important;}}</style></head><body>
+<h1 style="color:#f8fafc;font-size:22px;margin-bottom:2px;">${selected.title}</h1>
+<p style="color:#64748b;font-size:12px;margin-bottom:20px;">Period: ${selected.period} &middot; Date: ${selected.date}</p>
+
+${sec('Executive Summary')}
+<p style="color:#cbd5e1;font-size:13px;">${selected.executiveSummary}</p>
+
+${sec('Quantitative Metrics')}
+<div class="grid4">
+  ${metric('Revenue Actual', `IDR ${m.revenueProgress.actual}M`, `/ IDR ${m.revenueProgress.target}M (${m.revenueProgress.percentage}%)`, '#ef4444')}
+  ${metric('Secured Revenue EOY', `IDR ${m.securedRevenue?.amount ?? 0}M`, m.securedRevenue?.note || 'Contracted EOY', '#34d399')}
+  ${metric('Revenue Projection', `IDR ${m.revenueProjection?.projected ?? 0}M`, `Annualized W${m.revenueProjection?.weeksElapsed ?? '?'} run-rate`, '#38bdf8')}
+  ${metric('Budget Utilization', `${m.budgetInfo.utilization}%`, `IDR ${m.budgetInfo.spent}M / ${m.budgetInfo.approved}M`, '#fbbf24')}
+</div>
+
+${sec('OKR Update')}
+<table style="${tbl}"><thead><tr><th style="${th}">Pillar</th><th style="${th}">Progress</th><th style="${th}">Status</th></tr></thead><tbody>
+${selected.okrUpdate.map(o => `<tr><td style="${td}">${o.pillar}</td><td style="${td}">${o.progress}%</td><td style="${td}">${o.status}</td></tr>`).join('')}
+</tbody></table>
+
+${sec('Qualitative Impacts')}
+<ul style="color:#cbd5e1;font-size:12px;">${selected.qualitativeImpacts.map(x => `<li>${x}</li>`).join('')}</ul>
+
+${sec('Quest Update')}
+<table style="${tbl}"><thead><tr><th style="${th}">Quest</th><th style="${th}">Last Week</th><th style="${th}">Next Week</th><th style="${th}">Status</th></tr></thead><tbody>
+${selected.questUpdate.map(q => `<tr><td style="${td}">${q.quest}</td><td style="${td}">${q.lastWeekDev}</td><td style="${td}">${q.nextWeekDev}</td><td style="${td}">${q.statusVsTimeline}</td></tr>`).join('')}
+</tbody></table>
+
+${sec('Manpower Update')}
+<ul style="color:#cbd5e1;font-size:12px;">${selected.manpowerUpdate.map(x => `<li>${x}</li>`).join('')}</ul>
+
+${sec('Previous Priorities')}
+<ul style="color:#cbd5e1;font-size:12px;">${selected.previousPriorities.map(x => `<li>${x}</li>`).join('')}</ul>
+
+${sec('Next Priorities')}
+<ul style="color:#cbd5e1;font-size:12px;">${selected.nextPriorities.map(x => `<li>${x}</li>`).join('')}</ul>
+
+<p style="color:#475569;font-size:10px;margin-top:32px;text-align:center;">Generated from GF Dashboard &middot; ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</p>
+</body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${selected.id}-${selected.date}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+    logHistory(selected.id, selected.title, 'exported');
+  };
+
   const exportToClipboard = () => {
     if (!selected) return;
     const text = [
@@ -636,6 +695,7 @@ export function WeeklyReportsView({ initialReports }: Props) {
             <button onClick={handleGenerateInsight} disabled={aiLoading} className={clsx('px-4 py-2 rounded-lg text-sm font-medium transition-all', aiLoading ? 'bg-purple-500/10 text-purple-400/50 cursor-not-allowed' : 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 border border-purple-500/30')}>
               {aiLoading ? 'Generating...' : 'AI Insight'}
             </button>
+            <button onClick={exportToHTML} className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm">⬇ Save HTML</button>
             <button onClick={exportToClipboard} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm">Export to Clipboard</button>
           </div>
         </div>

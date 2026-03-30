@@ -71,6 +71,35 @@ function saveLog(entries: LogEntry[]) {
   localStorage.setItem(LOG_KEY, JSON.stringify(entries));
 }
 
+// ── Weekly report log (from WeeklyReportsView localStorage) ───────────────────
+interface WeekReportSnapshot {
+  id: string; title: string; period: string; date: string; periodType: string;
+  revenueActual: number; revenueTarget: number; revenuePerc: number;
+  securedRevenue: number; okrUpdate: { pillar: string; progress: number; status: string }[];
+  executiveSummary: string;
+}
+function loadWeeklySnapshots(): WeekReportSnapshot[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem('reports_data_v2') || '[]');
+    return (raw as Record<string, unknown>[])
+      .filter(r => r.periodType === 'weekly')
+      .map(r => {
+        const m = (r.quantitativeMetrics as Record<string, Record<string, number>>) || {};
+        const rev = m.revenueProgress || {};
+        return {
+          id: String(r.id || ''), title: String(r.title || ''), period: String(r.period || ''),
+          date: String(r.date || ''), periodType: 'weekly',
+          revenueActual: Number(rev.actual ?? 0), revenueTarget: Number(rev.target ?? 0),
+          revenuePerc: Number(rev.percentage ?? 0),
+          securedRevenue: Number((m.securedRevenue as unknown as { amount?: number })?.amount ?? 0),
+          okrUpdate: ((r.okrUpdate as { pillar: string; progress: number; status: string }[]) || []),
+          executiveSummary: String(r.executiveSummary || ''),
+        };
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  } catch { return []; }
+}
+
 function formatDealValue(v: number): string {
   if (v >= 1000) return `IDR ${(v / 1000).toFixed(1)}B`;
   return `IDR ${v}M`;
@@ -186,13 +215,15 @@ export function SeniorLeadershipReportView() {
   const [execSummary, setExecSummary] = useState<string>('');
   const [weeklyRecords, setWeeklyRecords] = useState<WeeklyRecord[]>([]);
   const [activeWeekId, setActiveWeekId] = useState<string>('');
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [slInsight, setSlInsight] = useState<ReportInsight | null>(null);
   const [slInsightLoading, setSlInsightLoading] = useState(false);
   const [log, setLog] = useState<LogEntry[]>(loadLog);
   const [showLog, setShowLog] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
   const [previewEntry, setPreviewEntry] = useState<LogEntry | null>(null);
+  const [weeklySnapshots] = useState<WeekReportSnapshot[]>(loadWeeklySnapshots);
+  const [showWeeklyLog, setShowWeeklyLog] = useState(false);
 
   const budgetData = useMemo(getDefaultBudget, []);
   const latestReport = SAMPLE_REPORTS[0];
@@ -478,6 +509,12 @@ ${aiSection}
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowWeeklyLog(v => !v)}
+            className={clsx('flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors', showWeeklyLog ? 'bg-sky-500/20 text-sky-300 border-sky-500/30' : 'bg-slate-700/40 text-slate-300 hover:bg-slate-700/70 border-slate-600/30')}
+          >
+            📅 Weekly Log ({weeklySnapshots.length})
+          </button>
+          <button
             onClick={() => setShowLog(v => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-700/40 text-slate-300 hover:bg-slate-700/70 border border-slate-600/30 transition-colors"
           >
@@ -560,6 +597,55 @@ ${aiSection}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Weekly Report Log per Business Week ─────────────────────────── */}
+      {showWeeklyLog && (
+        <div className="bg-[#161b27] rounded-xl border border-sky-500/20 p-4 space-y-2">
+          <p className="text-xs font-semibold text-sky-400 uppercase tracking-wider mb-3">Weekly Report Log — Business Week History</p>
+          {weeklySnapshots.length === 0 ? (
+            <p className="text-xs text-slate-600">No weekly reports found. Create reports in the Weekly Reports tab.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-[#0f1117]">
+                    <th className="text-left px-3 py-2 text-slate-500 font-semibold uppercase tracking-wider">Period</th>
+                    <th className="text-left px-3 py-2 text-slate-500 font-semibold uppercase tracking-wider">Date</th>
+                    <th className="text-right px-3 py-2 text-slate-500 font-semibold uppercase tracking-wider">Revenue Actual</th>
+                    <th className="text-right px-3 py-2 text-slate-500 font-semibold uppercase tracking-wider">vs Target</th>
+                    <th className="text-right px-3 py-2 text-slate-500 font-semibold uppercase tracking-wider">Secured EOY</th>
+                    <th className="text-left px-3 py-2 text-slate-500 font-semibold uppercase tracking-wider">OKR Avg</th>
+                    <th className="text-left px-3 py-2 text-slate-500 font-semibold uppercase tracking-wider w-48">Summary</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/30">
+                  {weeklySnapshots.map(snap => {
+                    const okrAvg = snap.okrUpdate.length ? Math.round(snap.okrUpdate.reduce((s, o) => s + o.progress, 0) / snap.okrUpdate.length) : 0;
+                    const okrColor = okrAvg >= 70 ? 'text-emerald-400' : okrAvg >= 40 ? 'text-amber-400' : 'text-red-400';
+                    return (
+                      <tr key={snap.id} className="hover:bg-slate-800/20">
+                        <td className="px-3 py-2.5 text-slate-300 font-medium">{snap.period || snap.title}</td>
+                        <td className="px-3 py-2.5 text-slate-500">{snap.date}</td>
+                        <td className="px-3 py-2.5 text-right text-white font-semibold">IDR {snap.revenueActual}M</td>
+                        <td className="px-3 py-2.5 text-right">
+                          <span className={snap.revenuePerc >= 50 ? 'text-emerald-400' : snap.revenuePerc >= 20 ? 'text-amber-400' : 'text-red-400'}>
+                            {snap.revenuePerc}%
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-emerald-400">{snap.securedRevenue > 0 ? `IDR ${snap.securedRevenue}M` : '—'}</td>
+                        <td className="px-3 py-2.5">
+                          <span className={clsx('font-semibold', okrColor)}>{okrAvg}%</span>
+                        </td>
+                        <td className="px-3 py-2.5 text-slate-500 truncate max-w-[180px]" title={snap.executiveSummary}>{snap.executiveSummary.slice(0, 80)}{snap.executiveSummary.length > 80 ? '…' : ''}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
