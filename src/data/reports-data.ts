@@ -62,7 +62,7 @@ export const SAMPLE_REPORTS: WeeklyReport[] = [
     executiveSummary: 'Q1 revenue on track at IDR 294M against IDR 1.5B quarterly target (aggressive). Pipeline showing strong momentum with DANA Last War Phase 2 entering negotiation stage. Quality B2B leads at 17 against 24 target (71%). Key focus remains on closing Citilink and BPK Penabur deals before Q1 end. Roblox community metrics showing improvement with DAU at 480 against 650 target.',
     quantitativeMetrics: {
       revenueProgress: { target: 8895, actual: 294, percentage: 3.3 },
-      securedRevenue: { amount: 2326, note: 'All contracted invoices until EOY (excl. tax) — Rp2,326M' },
+      securedRevenue: { amount: 2076, note: 'All contracted invoices until EOY (excl. tax) — Rp2,076M' },
       revenueProjection: { projected: 1274, weeksElapsed: 12 },
       budgetInfo: { approved: 491.2, spent: 44.3, remaining: 446.9, utilization: 9 },
       leadsOpportunity: { initialLeads: 290, qualityLeads: 17, opportunities: 16, deals: 6 },
