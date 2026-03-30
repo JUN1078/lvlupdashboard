@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { clsx } from 'clsx';
 import { CRM_DEALS, CRM_LEADS, CRM_COMPANIES } from '../../data/crm-data';
 import { generateReportInsight, type ReportInsight } from '../../utils/ai-insight';
@@ -16,6 +16,50 @@ interface InvestmentRow { item: string; description: string; estimatedCost: stri
 interface QuestRow { quest: string; lastWeekDev: string; nextWeekDev: string; status: string }
 interface BASTRow { client: string; description: string; status: string; bastInvoice: string; value: string }
 interface BudgetRow { actionPlan: string; totalPlan: string; totalActual: string; balance: string; utilization: string }
+
+// ── Weekly report record ───────────────────────────────────────────────────────
+interface WeeklyRecord {
+  id: string;
+  weekNumber: number;
+  year: number;
+  label: string;
+  createdAt: string;
+  execSummary: string;
+  bastRows: BASTRow[];
+  newDeals: NewDealRow[];
+  greenLights: NewDealRow[];
+  leads: LeadRow[];
+  activeOpps: ActiveOppRow[];
+  investments: InvestmentRow[];
+  quests: QuestRow[];
+}
+const WEEKLY_KEY = 'sl_weekly_records';
+const ACTIVE_WEEK_KEY = 'sl_active_week_id';
+function loadWeeklyRecords(): WeeklyRecord[] {
+  try { return JSON.parse(localStorage.getItem(WEEKLY_KEY) || '[]'); } catch { return []; }
+}
+function saveWeeklyRecords(records: WeeklyRecord[]) {
+  localStorage.setItem(WEEKLY_KEY, JSON.stringify(records));
+}
+function getISOWeek(date: Date): number {
+  const d = new Date(date); d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const w1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d.getTime() - w1.getTime()) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7);
+}
+function getWeekStart(week: number, year: number): Date {
+  const jan4 = new Date(year, 0, 4);
+  const day = jan4.getDay() || 7;
+  const ws = new Date(jan4);
+  ws.setDate(jan4.getDate() - day + 1 + (week - 1) * 7);
+  return ws;
+}
+function makeWeekLabel(week: number, year: number): string {
+  const s = getWeekStart(week, year);
+  const e = new Date(s); e.setDate(s.getDate() + 6);
+  const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return `W${week} · ${fmt(s)}–${fmt(e)} ${year}`;
+}
 
 // ── Saved log entry ───────────────────────────────────────────────────────────
 interface LogEntry { date: string; summary: string; html: string }
@@ -139,6 +183,10 @@ export function SeniorLeadershipReportView() {
   const [activeOpps, setActiveOpps] = useState<ActiveOppRow[]>(getDefaultActiveOpps);
   const [investments, setInvestments] = useState<InvestmentRow[]>(getDefaultInvestments);
   const [quests, setQuests] = useState<QuestRow[]>(getDefaultQuests);
+  const [execSummary, setExecSummary] = useState<string>('');
+  const [weeklyRecords, setWeeklyRecords] = useState<WeeklyRecord[]>([]);
+  const [activeWeekId, setActiveWeekId] = useState<string>('');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const [slInsight, setSlInsight] = useState<ReportInsight | null>(null);
   const [slInsightLoading, setSlInsightLoading] = useState(false);
   const [log, setLog] = useState<LogEntry[]>(loadLog);
@@ -170,6 +218,98 @@ export function SeniorLeadershipReportView() {
     const bestChannel = [...CHANNEL_DATA].sort((a, b) => b.totalLeads - a.totalLeads)[0];
     return { funnelSummary, channelLeads, bestChannel };
   }, []);
+
+  // ── Weekly records: init ─────────────────────────────────────────────────
+  useEffect(() => {
+    const records = loadWeeklyRecords();
+    const savedId = localStorage.getItem(ACTIVE_WEEK_KEY) || '';
+    if (records.length === 0) {
+      const now = new Date();
+      const wk = getISOWeek(now);
+      const yr = now.getFullYear();
+      const init: WeeklyRecord = {
+        id: Date.now().toString(), weekNumber: wk, year: yr,
+        label: makeWeekLabel(wk, yr), createdAt: now.toISOString(),
+        execSummary: latestReport?.executiveSummary || '',
+        bastRows: getDefaultBAST(), newDeals: getDefaultNewDeals(),
+        greenLights: getDefaultGreenLights(), leads: getDefaultLeads(),
+        activeOpps: getDefaultActiveOpps(), investments: getDefaultInvestments(),
+        quests: getDefaultQuests(),
+      };
+      saveWeeklyRecords([init]);
+      setWeeklyRecords([init]);
+      setActiveWeekId(init.id);
+      setExecSummary(init.execSummary);
+    } else {
+      setWeeklyRecords(records);
+      const id = records.find(r => r.id === savedId) ? savedId : records[records.length - 1].id;
+      setActiveWeekId(id);
+      const rec = records.find(r => r.id === id);
+      if (rec) {
+        setExecSummary(rec.execSummary);
+        setBastRows(rec.bastRows); setNewDeals(rec.newDeals);
+        setGreenLights(rec.greenLights); setLeads(rec.leads);
+        setActiveOpps(rec.activeOpps); setInvestments(rec.investments);
+        setQuests(rec.quests);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Weekly records: auto-save on any change ──────────────────────────────
+  useEffect(() => {
+    if (!activeWeekId) return;
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      setWeeklyRecords(prev => {
+        const updated = prev.map(r => r.id === activeWeekId
+          ? { ...r, execSummary, bastRows, newDeals, greenLights, leads, activeOpps, investments, quests }
+          : r);
+        saveWeeklyRecords(updated);
+        return updated;
+      });
+    }, 600);
+  }, [execSummary, bastRows, newDeals, greenLights, leads, activeOpps, investments, quests, activeWeekId]);
+
+  const switchWeek = (id: string) => {
+    const rec = weeklyRecords.find(r => r.id === id);
+    if (!rec) return;
+    setActiveWeekId(id);
+    localStorage.setItem(ACTIVE_WEEK_KEY, id);
+    setExecSummary(rec.execSummary);
+    setBastRows(rec.bastRows); setNewDeals(rec.newDeals);
+    setGreenLights(rec.greenLights); setLeads(rec.leads);
+    setActiveOpps(rec.activeOpps); setInvestments(rec.investments);
+    setQuests(rec.quests);
+  };
+
+  const createNewWeek = () => {
+    const now = new Date();
+    const wk = getISOWeek(now);
+    const yr = now.getFullYear();
+    const existing = weeklyRecords.find(r => r.weekNumber === wk && r.year === yr);
+    if (existing) { switchWeek(existing.id); return; }
+    const rec: WeeklyRecord = {
+      id: Date.now().toString(), weekNumber: wk, year: yr,
+      label: makeWeekLabel(wk, yr), createdAt: now.toISOString(),
+      execSummary: '', bastRows: [], newDeals: getDefaultNewDeals(),
+      greenLights: getDefaultGreenLights(), leads: [],
+      activeOpps: getDefaultActiveOpps(), investments: [],
+      quests: [{ quest: '', lastWeekDev: '', nextWeekDev: '', status: '' }],
+    };
+    const updated = [...weeklyRecords, rec].sort((a, b) =>
+      a.year !== b.year ? a.year - b.year : a.weekNumber - b.weekNumber);
+    setWeeklyRecords(updated);
+    saveWeeklyRecords(updated);
+    switchWeek(rec.id);
+  };
+
+  const deleteWeek = (id: string) => {
+    if (weeklyRecords.length <= 1) return;
+    const updated = weeklyRecords.filter(r => r.id !== id);
+    saveWeeklyRecords(updated);
+    setWeeklyRecords(updated);
+    if (activeWeekId === id) switchWeek(updated[updated.length - 1].id);
+  };
 
   // Auto-generate AI insight on mount
   const handleSlInsight = useCallback(async () => {
@@ -229,7 +369,7 @@ ${sectionTitle('Executive Summary')}
   ${summaryBox('Active Deals', `${pipelineSummary.activeCount} (${formatDealValue(pipelineSummary.activeValue)})`, '#fbbf24')}
   ${summaryBox('Total Leads', `${CRM_LEADS.length}`, '#818cf8')}
 </div>
-${latestReport ? `<p style="color:#94a3b8;font-size:13px;margin-top:8px;">${latestReport.executiveSummary}</p>` : ''}
+${execSummary ? `<p style="color:#94a3b8;font-size:13px;margin-top:8px;">${execSummary}</p>` : ''}
 
 ${sectionTitle('BAST & Financial')}
 <table style="${tableStyle}"><thead><tr>
@@ -358,6 +498,40 @@ ${aiSection}
         </div>
       </div>
 
+      {/* ── Week Selector Bar ─────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+          {weeklyRecords.map(rec => (
+            <div key={rec.id} className="relative group flex-shrink-0">
+              <button
+                onClick={() => switchWeek(rec.id)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-lg text-[10px] font-medium transition-colors whitespace-nowrap border',
+                  rec.id === activeWeekId
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-slate-800/40 text-slate-400 border-slate-700/30 hover:bg-slate-700/40 hover:text-slate-300'
+                )}
+              >
+                {rec.label}
+              </button>
+              {weeklyRecords.length > 1 && (
+                <button
+                  onClick={() => deleteWeek(rec.id)}
+                  className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500/80 text-white text-[8px] leading-none hidden group-hover:flex items-center justify-center"
+                  title="Delete week"
+                >✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={createNewWeek}
+          className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-[10px] font-medium rounded-lg bg-brand-500/10 text-brand-400 border border-brand-500/20 hover:bg-brand-500/20 transition-colors whitespace-nowrap"
+        >
+          + New Week
+        </button>
+      </div>
+
       {/* Log Panel */}
       {showLog && (
         <div className="bg-[#161b27] rounded-xl border border-slate-700/30 p-4 space-y-2">
@@ -402,11 +576,16 @@ ${aiSection}
           <StatCard label="Active Deals" value={`${pipelineSummary.activeCount} (${formatDealValue(pipelineSummary.activeValue)})`} color="text-amber-400" />
           <StatCard label="Total Leads" value={`${CRM_LEADS.length} leads`} color="text-purple-400" />
         </div>
-        {latestReport && (
-          <p className="text-xs text-slate-400 bg-[#0f1117] rounded-lg border border-slate-700/20 px-4 py-3 leading-relaxed">
-            {latestReport.executiveSummary}
-          </p>
-        )}
+        <div className="relative">
+          <textarea
+            rows={4}
+            className="w-full text-xs text-slate-300 bg-[#0f1117] rounded-lg border border-slate-700/20 px-4 py-3 leading-relaxed outline-none focus:border-amber-500/40 resize-none transition-colors placeholder:text-slate-600"
+            placeholder="Write executive summary for this week's report — key highlights, pipeline status, risks, and priorities..."
+            value={execSummary}
+            onChange={e => setExecSummary(e.target.value)}
+          />
+          <span className="absolute bottom-2 right-3 text-[9px] text-slate-700">editable</span>
+        </div>
       </section>
 
       {/* ── BAST & Financial ─────────────────────────────────────────────── */}
