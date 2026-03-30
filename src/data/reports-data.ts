@@ -12,6 +12,8 @@ export interface ReportHistoryEntry {
 
 export interface ReportMetrics {
   revenueProgress: { target: number; actual: number; percentage: number };
+  securedRevenue?: { amount: number; note?: string };
+  revenueProjection?: { projected: number; weeksElapsed: number };
   budgetInfo: { approved: number; spent: number; remaining: number; utilization: number };
   leadsOpportunity: { initialLeads: number; qualityLeads: number; opportunities: number; deals: number };
   marketingToLeads: { totalActivities: number; leadsGenerated: number; conversionRate: number };
@@ -59,7 +61,9 @@ export const SAMPLE_REPORTS: WeeklyReport[] = [
     approvedBy: 'Management',
     executiveSummary: 'Q1 revenue on track at IDR 294M against IDR 1.5B quarterly target (aggressive). Pipeline showing strong momentum with DANA Last War Phase 2 entering negotiation stage. Quality B2B leads at 17 against 24 target (71%). Key focus remains on closing Citilink and BPK Penabur deals before Q1 end. Roblox community metrics showing improvement with DAU at 480 against 650 target.',
     quantitativeMetrics: {
-      revenueProgress: { target: 6000, actual: 294, percentage: 4.9 },
+      revenueProgress: { target: 8895, actual: 294, percentage: 3.3 },
+      securedRevenue: { amount: 2076, note: 'Contracted revenue projected to EOY (excl. tax)' },
+      revenueProjection: { projected: 1274, weeksElapsed: 12 },
       budgetInfo: { approved: 491.2, spent: 44.3, remaining: 446.9, utilization: 9 },
       leadsOpportunity: { initialLeads: 290, qualityLeads: 17, opportunities: 16, deals: 6 },
       marketingToLeads: { totalActivities: 15, leadsGenerated: 290, conversionRate: 5.9 },

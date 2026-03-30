@@ -241,4 +241,24 @@ export function notionPageToRecord(page: NotionPage): NotionRecord {
   return { id: page.id, title: extractTitle(page), fields };
 }
 
+// ─── Search ───────────────────────────────────────────────────────────────────
+
+export async function notionSearch(
+  query = '',
+  filter?: { value: 'page' | 'database'; property: 'object' },
+  token?: string,
+): Promise<NotionPage[]> {
+  const body: Record<string, unknown> = { page_size: 100 };
+  if (query) body.query = query;
+  if (filter) body.filter = filter;
+  const res = await fetch(`${BASE}/search`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Notion search ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return ((data.results as NotionPage[]) ?? []);
+}
+
 export { richText, selectProp, dateProp, titleProp };

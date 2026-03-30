@@ -2,12 +2,31 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { clsx } from 'clsx';
 import type { WeeklyReport, OKRItem, QuestUpdateItem, ReportHistoryEntry } from '../../data/reports-data';
 import { generateReportInsight, type ReportInsight } from '../../utils/ai-insight';
+import { notionSearch, extractTitle, extractSelect, extractRichText } from '../../utils/notion-api';
 
 const LS_KEY = 'reports_data_v2';
 const HISTORY_LS_KEY = 'reports_history';
+const HIDDEN_LS_KEY = 'reports_hidden_sections';
+const NOTION_TOKEN = import.meta.env.VITE_NOTION_TOKEN as string || '';
 type PeriodFilter = 'weekly' | 'monthly' | 'quarterly' | 'annual';
+type SectionKey = 'exec' | 'metrics' | 'okr' | 'qualitative' | 'quest' | 'manpower' | 'prevPriorities' | 'nextPriorities';
 
 function loadLS<T>(key: string, fb: T): T { try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fb; } catch { return fb; } }
+
+// ISO week helpers
+function getISOWeekNum(d = new Date()) {
+  const date = new Date(d); date.setHours(0,0,0,0);
+  date.setDate(date.getDate() + 3 - ((date.getDay()+6)%7));
+  const w1 = new Date(date.getFullYear(),0,4);
+  return 1+Math.round(((date.getTime()-w1.getTime())/86400000-3+((w1.getDay()+6)%7))/7);
+}
+function getWeekRangeLabel(weekNum: number, year: number) {
+  const jan4 = new Date(year,0,4); const dow = jan4.getDay()||7;
+  const mon = new Date(jan4); mon.setDate(jan4.getDate()-dow+1+(weekNum-1)*7);
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+  const fmt = (d: Date) => d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  return `Week ${weekNum} (${fmt(mon)}–${fmt(sun)}, ${year})`;
+}
 
 const statusColor: Record<string, string> = { 'On Track': 'bg-green-500/20 text-green-400', 'At Risk': 'bg-amber-500/20 text-amber-400', Behind: 'bg-red-500/20 text-red-400', 'Slightly Behind': 'bg-orange-500/20 text-orange-400' };
 const statusBarColor: Record<string, string> = { 'On Track': 'bg-green-500', 'At Risk': 'bg-amber-500', Behind: 'bg-red-500' };
@@ -25,6 +44,9 @@ export function WeeklyReportsView({ initialReports }: Props) {
   const [aiInsight, setAiInsight] = useState<ReportInsight | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [showInsight, setShowInsight] = useState(false);
+  const [hiddenSections, setHiddenSections] = useState<SectionKey[]>(() => loadLS(HIDDEN_LS_KEY, []));
+  const [notionSyncing, setNotionSyncing] = useState<SectionKey | 'all' | ''>('');
+  const [notionError, setNotionError] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify(reports)); } catch {} }, [reports]);
@@ -112,6 +134,60 @@ export function WeeklyReportsView({ initialReports }: Props) {
     updateReport(selected.id, { questUpdate: selected.questUpdate.filter((_: QuestUpdateItem, i: number) => i !== idx) }, 'quest update');
   };
 
+  // ── Section visibility ────────────────────────────────────────────────────
+  const toggleSection = (key: SectionKey) => {
+    setHiddenSections(prev => {
+      const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
+      localStorage.setItem(HIDDEN_LS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+  const isHidden = (key: SectionKey) => hiddenSections.includes(key);
+
+  // ── Notion sync ───────────────────────────────────────────────────────────
+  const handleNotionSync = async (section: SectionKey | 'all') => {
+    if (!selected) return;
+    setNotionSyncing(section);
+    setNotionError('');
+    try {
+      const pages = await notionSearch('', undefined, NOTION_TOKEN);
+      const byTitle = (kw: string) => pages.filter(p => extractTitle(p).toLowerCase().includes(kw));
+
+      if (section === 'quest' || section === 'all') {
+        const src = byTitle('quest').length > 0 ? byTitle('quest') : pages.slice(0, 15);
+        const quests: QuestUpdateItem[] = src.slice(0, 12).map(p => ({
+          quest: extractTitle(p),
+          lastWeekDev: extractRichText(p, 'Last Week Development') || extractRichText(p, 'Description') || extractRichText(p, 'Notes') || '',
+          nextWeekDev: extractRichText(p, 'Next Week Development') || extractRichText(p, 'Next Step') || '',
+          statusVsTimeline: extractSelect(p, 'Status') || extractSelect(p, 'State') || 'On Track',
+        })).filter(q => q.quest && q.quest !== '(untitled)');
+        if (quests.length > 0) updateReport(selected.id, { questUpdate: quests }, 'quest update');
+      }
+
+      if (section === 'manpower' || section === 'all') {
+        const src = byTitle('team').length > 0 ? byTitle('team') : byTitle('manpower').length > 0 ? byTitle('manpower') : pages.slice(0, 8);
+        const items = src.slice(0, 8).map(p => extractTitle(p)).filter(t => t !== '(untitled)');
+        if (items.length > 0) updateReport(selected.id, { manpowerUpdate: items }, 'manpower update');
+      }
+
+      if (section === 'prevPriorities' || section === 'all') {
+        const src = byTitle('priority').length > 0 ? byTitle('priority') : byTitle('previous').length > 0 ? byTitle('previous') : pages.slice(0, 8);
+        const items = src.slice(0, 8).map(p => extractTitle(p)).filter(t => t !== '(untitled)');
+        if (items.length > 0) updateReport(selected.id, { previousPriorities: items }, 'previous priorities');
+      }
+
+      if (section === 'nextPriorities' || section === 'all') {
+        const src = byTitle('next').length > 0 ? byTitle('next') : byTitle('upcoming').length > 0 ? byTitle('upcoming') : pages.slice(pages.length - 8);
+        const items = src.slice(0, 8).map(p => extractTitle(p)).filter(t => t !== '(untitled)');
+        if (items.length > 0) updateReport(selected.id, { nextPriorities: items }, 'next priorities');
+      }
+    } catch (err) {
+      setNotionError(err instanceof Error ? err.message : 'Notion sync failed');
+    } finally {
+      setNotionSyncing('');
+    }
+  };
+
   const exportToClipboard = () => {
     if (!selected) return;
     const text = [
@@ -154,17 +230,23 @@ export function WeeklyReportsView({ initialReports }: Props) {
   };
 
   const createNewReport = (form: { title: string; period: string; periodType: PeriodFilter }) => {
+    const now = new Date();
+    const wk = getISOWeekNum(now); const yr = now.getFullYear();
+    const autoTitle = form.periodType === 'weekly' ? `W${wk} ${yr} - Gamification Division Weekly Report` : `${form.periodType.charAt(0).toUpperCase()+form.periodType.slice(1)} Report ${yr}`;
+    const autoPeriod = form.periodType === 'weekly' ? getWeekRangeLabel(wk, yr) : `${form.periodType} ${yr}`;
     const newReport: WeeklyReport = {
-      id: `NEW-${Date.now()}`,
-      title: form.title,
-      period: form.period,
+      id: form.periodType === 'weekly' ? `W${wk}-${yr}-${Date.now()}` : `${form.periodType.toUpperCase()}-${yr}-${Date.now()}`,
+      title: form.title || autoTitle,
+      period: form.period || autoPeriod,
       periodType: form.periodType,
       date: new Date().toISOString().slice(0, 10),
       preparedBy: 'Shieny Aprilia',
       approvedBy: 'Management',
       executiveSummary: 'Enter executive summary...',
       quantitativeMetrics: {
-        revenueProgress: { target: 0, actual: 0, percentage: 0 },
+        revenueProgress: { target: 8895, actual: 0, percentage: 0 },
+        securedRevenue: { amount: 0, note: 'Contracted revenue projected to EOY' },
+        revenueProjection: { projected: 0, weeksElapsed: getISOWeekNum() },
         budgetInfo: { approved: 0, spent: 0, remaining: 0, utilization: 0 },
         leadsOpportunity: { initialLeads: 0, qualityLeads: 0, opportunities: 0, deals: 0 },
         marketingToLeads: { totalActivities: 0, leadsGenerated: 0, conversionRate: 0 },
@@ -279,12 +361,34 @@ export function WeeklyReportsView({ initialReports }: Props) {
 
       {/* Report Selector */}
       {filtered.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-          {filtered.map(r => (
-            <button key={r.id} onClick={() => setSelectedId(r.id)} className={clsx('px-4 py-2 rounded-lg text-sm transition-all', selectedId === r.id ? 'bg-[#1a1f2e] text-white border border-red-500/30' : 'bg-[#161b27] text-slate-400 hover:text-white')}>
-              {r.id}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-1.5 overflow-x-auto pb-1">
+            {filtered.map(r => (
+              <button key={r.id} onClick={() => setSelectedId(r.id)}
+                className={clsx('px-3 py-1.5 rounded-lg text-[10px] font-medium transition-colors whitespace-nowrap border flex-shrink-0',
+                  (selectedId === r.id || (!selectedId && filtered[0]?.id === r.id))
+                    ? 'bg-red-500/20 text-red-300 border-red-500/40'
+                    : 'bg-slate-800/40 text-slate-400 border-slate-700/30 hover:bg-slate-700/40 hover:text-slate-300'
+                )}>
+                {r.period || r.title}
+              </button>
+            ))}
+          </div>
+          {selected && (
+            <button
+              onClick={() => handleNotionSync('all')}
+              disabled={!!notionSyncing}
+              className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-[10px] font-medium rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition-colors whitespace-nowrap disabled:opacity-50"
+            >
+              {notionSyncing === 'all' ? '⏳ Syncing...' : '🔄 Sync All Notion'}
             </button>
-          ))}
+          )}
+        </div>
+      )}
+      {notionError && (
+        <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span>Notion: {notionError}</span>
+          <button onClick={() => setNotionError('')} className="text-red-400 hover:text-red-300 ml-2">✕</button>
         </div>
       )}
 
@@ -297,17 +401,16 @@ export function WeeklyReportsView({ initialReports }: Props) {
             <div className="flex gap-4 mt-2 text-xs text-slate-400">
               <span>Period: {selected.period}</span>
               <span>Date: {selected.date}</span>
-              <span>By: {selected.preparedBy}</span>
             </div>
           </div>
 
           {/* Executive Summary */}
-          <Section title="Executive Summary">
+          <CollapsibleSection title="Executive Summary" sectionKey="exec" isHidden={isHidden('exec')} onToggle={() => toggleSection('exec')}>
             <textarea className="w-full bg-[#0f1117] border border-slate-700 hover:border-slate-600 focus:border-red-500 rounded-lg px-4 py-3 text-slate-300 text-sm outline-none resize-none min-h-[80px]" value={selected.executiveSummary} onChange={e => updateReport(selected.id, { executiveSummary: e.target.value }, 'executive summary')} />
-          </Section>
+          </CollapsibleSection>
 
           {/* Quantitative Metrics */}
-          <Section title="Quantitative Metrics Update">
+          <CollapsibleSection title="Quantitative Metrics Update" sectionKey="metrics" isHidden={isHidden('metrics')} onToggle={() => toggleSection('metrics')}>
             <div className="grid grid-cols-2 gap-3">
               {/* Revenue */}
               <div className="bg-[#0f1117] rounded-lg p-4">
@@ -353,6 +456,32 @@ export function WeeklyReportsView({ initialReports }: Props) {
                 </div>
               </div>
 
+              {/* Secured Revenue */}
+              <div className="bg-[#0f1117] rounded-lg p-4">
+                <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wide">Secured Revenue (EOY)</p>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xl font-bold text-emerald-400">IDR {selected.quantitativeMetrics.securedRevenue?.amount ?? 0}M</span>
+                  <span className="text-xs text-slate-500">{Math.round(((selected.quantitativeMetrics.securedRevenue?.amount ?? 0) / selected.quantitativeMetrics.revenueProgress.target) * 100)}% of target</span>
+                </div>
+                <div className="mt-2 h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(((selected.quantitativeMetrics.securedRevenue?.amount ?? 0) / selected.quantitativeMetrics.revenueProgress.target) * 100, 100)}%` }} />
+                </div>
+                <p className="text-xs text-slate-500 mt-1 truncate">{selected.quantitativeMetrics.securedRevenue?.note || 'Contracted revenue projected to EOY'}</p>
+              </div>
+
+              {/* Revenue Projection */}
+              <div className="bg-[#0f1117] rounded-lg p-4">
+                <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wide">Revenue Projection (Run-Rate)</p>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xl font-bold text-sky-400">IDR {selected.quantitativeMetrics.revenueProjection?.projected ?? Math.round((selected.quantitativeMetrics.revenueProgress.actual / (selected.quantitativeMetrics.revenueProjection?.weeksElapsed || 12)) * 52)}M</span>
+                  <span className="text-sm text-slate-500">/ IDR {selected.quantitativeMetrics.revenueProgress.target}M</span>
+                </div>
+                <div className="mt-2 h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-sky-500 rounded-full" style={{ width: `${Math.min(((selected.quantitativeMetrics.revenueProjection?.projected ?? 0) / selected.quantitativeMetrics.revenueProgress.target) * 100, 100)}%` }} />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Annualized from W{selected.quantitativeMetrics.revenueProjection?.weeksElapsed ?? 12} actual</p>
+              </div>
+
               {/* Marketing Activities */}
               <div className="bg-[#0f1117] rounded-lg p-4">
                 <p className="text-xs text-slate-400 mb-3 font-semibold uppercase tracking-wide">Marketing Activities &rarr; Leads</p>
@@ -372,10 +501,10 @@ export function WeeklyReportsView({ initialReports }: Props) {
                 </div>
               </div>
             </div>
-          </Section>
+          </CollapsibleSection>
 
           {/* OKR Update */}
-          <Section title="OKR Update">
+          <CollapsibleSection title="OKR Update" sectionKey="okr" isHidden={isHidden('okr')} onToggle={() => toggleSection('okr')}>
             <div className="space-y-3">
               {selected.okrUpdate.map((o, i) => (
                 <div key={i} className="bg-[#0f1117] rounded-lg p-3 flex items-center gap-4">
@@ -396,13 +525,15 @@ export function WeeklyReportsView({ initialReports }: Props) {
                 </div>
               ))}
             </div>
-          </Section>
+          </CollapsibleSection>
 
           {/* Editable Lists */}
-          <EditableListSection title="Qualitative Impacts" items={selected.qualitativeImpacts} field="qualitativeImpacts" onUpdate={updateListItem} onAdd={addListItem} onRemove={removeListItem} />
+          <EditableListSection title="Qualitative Impacts" sectionKey="qualitative" isHidden={isHidden('qualitative')} onToggle={() => toggleSection('qualitative')} items={selected.qualitativeImpacts} field="qualitativeImpacts" onUpdate={updateListItem} onAdd={addListItem} onRemove={removeListItem} />
 
           {/* Quest Update Table */}
-          <Section title="Quest Update">
+          <CollapsibleSection title="Quest Update" sectionKey="quest" isHidden={isHidden('quest')} onToggle={() => toggleSection('quest')}
+            extra={<button onClick={() => handleNotionSync('quest')} disabled={!!notionSyncing} className="flex items-center gap-1 px-2 py-1 text-[9px] rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 disabled:opacity-50">{notionSyncing==='quest'?'⏳':'🔄'} Notion</button>}
+          >
             <div className="overflow-x-auto rounded-lg border border-slate-700/30">
               <table className="w-full text-xs">
                 <thead>
@@ -451,11 +582,11 @@ export function WeeklyReportsView({ initialReports }: Props) {
               </table>
             </div>
             <button onClick={addQuestItem} className="text-xs text-slate-500 hover:text-red-400 mt-2">+ Add Quest</button>
-          </Section>
+          </CollapsibleSection>
 
-          <EditableListSection title="Manpower Update" items={selected.manpowerUpdate} field="manpowerUpdate" onUpdate={updateListItem} onAdd={addListItem} onRemove={removeListItem} />
-          <EditableListSection title="Previous Period Priorities" items={selected.previousPriorities} field="previousPriorities" onUpdate={updateListItem} onAdd={addListItem} onRemove={removeListItem} />
-          <EditableListSection title="Next Period Priorities" items={selected.nextPriorities} field="nextPriorities" onUpdate={updateListItem} onAdd={addListItem} onRemove={removeListItem} />
+          <EditableListSection title="Manpower Update" sectionKey="manpower" isHidden={isHidden('manpower')} onToggle={() => toggleSection('manpower')} notionBtn={<button onClick={() => handleNotionSync('manpower')} disabled={!!notionSyncing} className="flex items-center gap-1 px-2 py-1 text-[9px] rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 disabled:opacity-50">{notionSyncing==='manpower'?'⏳':'🔄'} Notion</button>} items={selected.manpowerUpdate} field="manpowerUpdate" onUpdate={updateListItem} onAdd={addListItem} onRemove={removeListItem} />
+          <EditableListSection title="Previous Period Priorities" sectionKey="prevPriorities" isHidden={isHidden('prevPriorities')} onToggle={() => toggleSection('prevPriorities')} notionBtn={<button onClick={() => handleNotionSync('prevPriorities')} disabled={!!notionSyncing} className="flex items-center gap-1 px-2 py-1 text-[9px] rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 disabled:opacity-50">{notionSyncing==='prevPriorities'?'⏳':'🔄'} Notion</button>} items={selected.previousPriorities} field="previousPriorities" onUpdate={updateListItem} onAdd={addListItem} onRemove={removeListItem} />
+          <EditableListSection title="Next Period Priorities" sectionKey="nextPriorities" isHidden={isHidden('nextPriorities')} onToggle={() => toggleSection('nextPriorities')} notionBtn={<button onClick={() => handleNotionSync('nextPriorities')} disabled={!!notionSyncing} className="flex items-center gap-1 px-2 py-1 text-[9px] rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 disabled:opacity-50">{notionSyncing==='nextPriorities'?'⏳':'🔄'} Notion</button>} items={selected.nextPriorities} field="nextPriorities" onUpdate={updateListItem} onAdd={addListItem} onRemove={removeListItem} />
 
           {/* AI Insight Panel */}
           {showInsight && (
@@ -520,25 +651,45 @@ export function WeeklyReportsView({ initialReports }: Props) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// ── CollapsibleSection ────────────────────────────────────────────────────────
+function CollapsibleSection({ title, sectionKey: _sectionKey, isHidden, onToggle, children, extra }: {
+  title: string; sectionKey: string; isHidden: boolean; onToggle: () => void;
+  children?: React.ReactNode; extra?: React.ReactNode;
+}) {
   return (
-    <div className="bg-[#1a1f2e] rounded-xl p-5 space-y-3">
-      <h3 className="text-sm font-semibold text-white border-l-4 border-red-500 pl-3">{title}</h3>
-      {children}
+    <div className="bg-[#1a1f2e] rounded-xl overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-700/30">
+        <span className="w-1 h-4 bg-red-500 rounded-full flex-shrink-0" />
+        <h3 className="text-sm font-semibold text-white flex-1">{title}</h3>
+        {extra}
+        <button onClick={onToggle} title={isHidden ? 'Show section' : 'Hide section'}
+          className={clsx('text-[10px] px-2 py-1 rounded border transition-colors flex-shrink-0',
+            isHidden ? 'text-slate-500 border-slate-700 hover:text-slate-300' : 'text-slate-400 border-slate-700/50 hover:text-red-400 hover:border-red-500/30'
+          )}>
+          {isHidden ? '👁 Show' : '🚫 Hide'}
+        </button>
+      </div>
+      {!isHidden && <div className="p-5 space-y-3">{children}</div>}
+      {isHidden && (
+        <div className="px-5 py-2 flex items-center gap-2">
+          <span className="text-[10px] text-slate-600 italic">Section hidden — won't appear in export</span>
+        </div>
+      )}
     </div>
   );
 }
 
 type ListField = 'qualitativeImpacts' | 'manpowerUpdate' | 'previousPriorities' | 'nextPriorities';
 
-function EditableListSection({ title, items, field, onUpdate, onAdd, onRemove }: {
-  title: string; items: string[]; field: ListField;
+function EditableListSection({ title, sectionKey, isHidden, onToggle, notionBtn, items, field, onUpdate, onAdd, onRemove }: {
+  title: string; sectionKey: string; isHidden: boolean; onToggle: () => void; notionBtn?: React.ReactNode;
+  items: string[]; field: ListField;
   onUpdate: (field: ListField, idx: number, value: string) => void;
   onAdd: (field: ListField) => void;
   onRemove: (field: ListField, idx: number) => void;
 }) {
   return (
-    <Section title={title}>
+    <CollapsibleSection title={title} sectionKey={sectionKey} isHidden={isHidden} onToggle={onToggle} extra={notionBtn}>
       <div className="space-y-2">
         {items.map((item, i) => (
           <div key={i} className="flex items-start gap-2 group">
@@ -549,7 +700,7 @@ function EditableListSection({ title, items, field, onUpdate, onAdd, onRemove }:
         ))}
         <button onClick={() => onAdd(field)} className="text-xs text-slate-500 hover:text-red-400 mt-1">+ Add item</button>
       </div>
-    </Section>
+    </CollapsibleSection>
   );
 }
 
@@ -559,14 +710,15 @@ function NewReportModal({ onClose, onCreate, defaultType }: { onClose: () => voi
     <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-20" onClick={onClose}>
       <div className="bg-[#1a1f2e] rounded-xl p-6 w-full max-w-md space-y-4" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-white">New Report</h3>
+        <p className="text-xs text-slate-500">Title and period are optional — auto-generated from current week if left blank.</p>
         <div className="space-y-3">
-          <div><label className="block text-xs text-slate-400 mb-1">Title</label><input className="w-full bg-[#0f1117] border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-red-500 outline-none" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. W13 2026 - Weekly Report" /></div>
-          <div><label className="block text-xs text-slate-400 mb-1">Period</label><input className="w-full bg-[#0f1117] border border-slate-700 rounded-lg px-3 py-2 text-white text-sm" value={form.period} onChange={e => setForm(p => ({ ...p, period: e.target.value }))} placeholder="e.g. Week 13 (March 23-29, 2026)" /></div>
+          <div><label className="block text-xs text-slate-400 mb-1">Title <span className="text-slate-600">(optional)</span></label><input className="w-full bg-[#0f1117] border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-red-500 outline-none" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Auto: W13 2026 - Gamification Division Weekly Report" /></div>
+          <div><label className="block text-xs text-slate-400 mb-1">Period <span className="text-slate-600">(optional)</span></label><input className="w-full bg-[#0f1117] border border-slate-700 rounded-lg px-3 py-2 text-white text-sm" value={form.period} onChange={e => setForm(p => ({ ...p, period: e.target.value }))} placeholder="Auto: Week 13 (Mar 23–29, 2026)" /></div>
           <div><label className="block text-xs text-slate-400 mb-1">Type</label><select className="w-full bg-[#0f1117] border border-slate-700 rounded-lg px-3 py-2 text-white text-sm" value={form.periodType} onChange={e => setForm(p => ({ ...p, periodType: e.target.value as PeriodFilter }))}><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option></select></div>
         </div>
         <div className="flex gap-3 justify-end pt-2">
           <button onClick={onClose} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Cancel</button>
-          <button onClick={() => form.title && onCreate(form)} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium">Create Report</button>
+          <button onClick={() => onCreate(form)} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium">Create Report</button>
         </div>
       </div>
     </div>
