@@ -76,11 +76,11 @@ export const OKR_ITEMS: OKRItem[] = [
 
   // ── P4: Cost Efficiency ────────────────────────────────────────────────────
   { id: 'p4-o', type: 'O', pillar: 'P4', team: 'Division', subject: 'Optimize cost efficiency and operational excellence', metric: 'Multiple', pic: 'Sandi', yearlyTarget: 'Various', q1Target: '-', q2Target: '-', q3Target: '-', q4Target: '-', status: 'On Track' },
-  { id: 'p4-kr1', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Manpower Efficiency', metric: '% Allocated', pic: 'Sandi', yearlyTarget: '75%', q1Target: '75%', q2Target: '75%', q3Target: '75%', q4Target: '75%', actual: '0', status: 'Below' },
-  { id: 'p4-kr2', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Vendor Performance Standardization', metric: '% Reported', pic: 'Sandi', yearlyTarget: '100%', q1Target: '50%', q2Target: '100%', q3Target: '100%', q4Target: '100%', actual: '0', status: 'Below' },
-  { id: 'p4-kr3', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Vendor Database & Specialization', metric: '% Listed', pic: 'Sandi', yearlyTarget: '100%', q1Target: '75%', q2Target: '100%', q3Target: '100%', q4Target: '100%', actual: '0', status: 'Below' },
-  { id: 'p4-kr4', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Plasma Cost Management', metric: '% Budget', pic: 'Sandi', yearlyTarget: '95%', q1Target: '95%', q2Target: '95%', q3Target: '95%', q4Target: '95%', actual: '0', status: 'Below' },
-  { id: 'p4-kr5', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Server Cost Control', metric: '% Budget', pic: 'Sandi', yearlyTarget: '95%', q1Target: '95%', q2Target: '95%', q3Target: '95%', q4Target: '95%', actual: '95%', status: 'Off Track' },
+  { id: 'p4-kr1', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Maintenance Project Manpower Efficiency', metric: '% leadership crew properly allocated to maintenance projects', pic: 'Sandi', yearlyTarget: '75%', q1Target: '75%', q2Target: '75%', q3Target: '75%', q4Target: '75%', actual: '0', status: 'Below' },
+  { id: 'p4-kr2', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Vendor Performance Standardization', metric: '% vendors with scoring (assessment & delivery phases)', pic: 'Sandi', yearlyTarget: '100%', q1Target: '50%', q2Target: '100%', q3Target: '100%', q4Target: '100%', actual: '0', status: 'Below' },
+  { id: 'p4-kr3', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Vendor Database & Specialization', metric: '% vendors listed in specialization database', pic: 'Sandi', yearlyTarget: '100%', q1Target: '75%', q2Target: '100%', q3Target: '100%', q4Target: '100%', actual: '0', status: 'Below' },
+  { id: 'p4-kr4', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Plasma Cost Management', metric: '% plasma budget within allocated budget per quarter', pic: 'Sandi', yearlyTarget: '95%', q1Target: '95%', q2Target: '95%', q3Target: '95%', q4Target: '95%', actual: '0', status: 'Below' },
+  { id: 'p4-kr5', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Infrastructure & Server Cost Control', metric: '% server budget within allocated budget per quarter', pic: 'Sandi', yearlyTarget: '95%', q1Target: '95%', q2Target: '95%', q3Target: '95%', q4Target: '95%', actual: '0', status: 'Below' },
   { id: 'p4-kr6', type: 'KR', pillar: 'P4', team: 'Product', subject: 'Team Building & Division Vibes (Active Participant Rate)', metric: '% Participation', pic: 'Ihsan', yearlyTarget: '65%', q1Target: '50%', q2Target: '60%', q3Target: '70%', q4Target: '80%', status: 'On Track' },
   { id: 'p4-kr7', type: 'KR', pillar: 'P4', team: 'Product', subject: 'High Performance Crew Engagement (Survey)', metric: '% Engaged', pic: 'Ihsan', yearlyTarget: '65%', q1Target: '50%', q2Target: '60%', q3Target: '70%', q4Target: '80%', status: 'On Track' },
   { id: 'p4-kr8', type: 'KR', pillar: 'P4', team: 'Production', subject: 'Project Delivery On-Timeness', metric: '% On-time', pic: 'Ihsan', yearlyTarget: '90%', q1Target: '90%', q2Target: '90%', q3Target: '90%', q4Target: '90%', actual: '87%', status: 'On Track' },
@@ -324,16 +324,16 @@ export const PERSON_KPIS: Record<string, PersonKPI[]> = {
   ],
   // ── P4 Pillar Owner: Cost Efficiency & Production ──────────────────────
   sandi: [
-    // P4-KR1: Manpower cost within budget — Not Started
-    { perspective: 'Financial', name: 'Manpower Cost Adherence (P4-KR1)', weight: 20, uom: '%', l1: 85, l2: 90, l3: 95, l4: 98, l5: 100, actual: 0, level: 'L1', higherIsBetter: true },
-    // P4-KR: Production delivery on-time — Not Started
-    { perspective: 'Customer', name: 'Project Delivery On-Time (P4-KR)', weight: 20, uom: '%', l1: 50, l2: 65, l3: 80, l4: 90, l5: 95, actual: 0, level: 'L1', higherIsBetter: true },
-    { perspective: 'Customer', name: 'Client Project Satisfaction', weight: 10, uom: '/5', l1: 2.5, l2: 3.0, l3: 3.5, l4: 4.0, l5: 4.5, actual: 0, level: 'L1', higherIsBetter: true },
-    { perspective: 'Internal', name: 'Sprint Velocity', weight: 10, uom: 'SP', l1: 15, l2: 25, l3: 35, l4: 45, l5: 55, actual: 0, level: 'L1', higherIsBetter: true },
-    { perspective: 'Internal', name: 'Bug Resolution Time (P4-KR)', weight: 10, uom: 'Days', l1: 14, l2: 10, l3: 7, l4: 5, l5: 3, actual: 0, level: 'L1', higherIsBetter: false },
-    { perspective: 'Internal', name: 'Team Utilization Rate', weight: 10, uom: '%', l1: 60, l2: 70, l3: 80, l4: 90, l5: 95, actual: 0, level: 'L1', higherIsBetter: true },
-    { perspective: 'Learning', name: 'Process Innovation Index', weight: 10, uom: 'Score', l1: 1, l2: 2, l3: 3, l4: 4, l5: 5, actual: 0, level: 'L1', higherIsBetter: true },
-    { perspective: 'Learning', name: 'Team Skill Development', weight: 10, uom: '%', l1: 20, l2: 40, l3: 60, l4: 80, l5: 100, actual: 0, level: 'L1', higherIsBetter: true },
+    // P4-KR1: Maintenance Project Manpower Efficiency — Q1 target 75%
+    { perspective: 'Internal', name: 'Maintenance Project Manpower Efficiency (P4-KR1)', weight: 20, uom: '%', l1: 30, l2: 55, l3: 75, l4: 85, l5: 95, actual: 0, level: 'L1', higherIsBetter: true },
+    // P4-KR2: Vendor Performance Standardization — Q1 target 50%, yearly 100%
+    { perspective: 'Internal', name: 'Vendor Performance Standardization (P4-KR2)', weight: 20, uom: '%', l1: 10, l2: 25, l3: 50, l4: 75, l5: 100, actual: 0, level: 'L1', higherIsBetter: true },
+    // P4-KR3: Vendor Database & Specialization — Q1 target 75%, yearly 100%
+    { perspective: 'Internal', name: 'Vendor Database & Specialization (P4-KR3)', weight: 20, uom: '%', l1: 25, l2: 50, l3: 75, l4: 88, l5: 100, actual: 0, level: 'L1', higherIsBetter: true },
+    // P4-KR4: Plasma Cost Management — Q1 target 95%
+    { perspective: 'Internal', name: 'Plasma Cost Management (P4-KR4)', weight: 20, uom: '%', l1: 60, l2: 80, l3: 95, l4: 98, l5: 100, actual: 0, level: 'L1', higherIsBetter: true },
+    // P4-KR5: Infrastructure & Server Cost Control — Q1 target 95%
+    { perspective: 'Internal', name: 'Infrastructure & Server Cost Control (P4-KR5)', weight: 20, uom: '%', l1: 60, l2: 80, l3: 95, l4: 98, l5: 100, actual: 0, level: 'L1', higherIsBetter: true },
   ],
   // ── Game Design Manager: P2 Product Launches ─────────────────────────
   thommi: [
