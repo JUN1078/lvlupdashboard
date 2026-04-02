@@ -97,9 +97,7 @@ export const OKR_ITEMS: OKRItem[] = [
   { id: 'p4-kr18b', type: 'KR', pillar: 'P4', team: 'Art', subject: 'AI Art Pipeline — 3rd Category', metric: '% Pipeline', pic: 'Putri F.', yearlyTarget: '100%', q1Target: '-', q2Target: '-', q3Target: '50%', q4Target: '100%', status: 'On Track' },
   { id: 'p4-kr19', type: 'KR', pillar: 'P4', team: 'Art', subject: 'AI crew for mockup presales', metric: 'Mockups/Qtr', pic: 'Putri F.', yearlyTarget: '6', q1Target: '1', q2Target: '1', q3Target: '2', q4Target: '2', actual: '1', status: 'On Track' },
   { id: 'p4-kr20', type: 'KR', pillar: 'P4', team: 'Game Design', subject: 'Development documentation & feature bank alignment', metric: '% Aligned', pic: 'Thommi', yearlyTarget: '100%', q1Target: '25%', q2Target: '50%', q3Target: '100%', q4Target: '100%', actual: '25%', status: 'On Track' },
-  { id: 'p4-kr21', type: 'KR', pillar: 'P4', team: 'QA', subject: 'QA Freelance Model Optimization', metric: 'Model', pic: 'Marlin', yearlyTarget: '1', q1Target: '1', q2Target: '1', q3Target: '1', q4Target: '1', actual: '1', status: 'On Track' },
-  { id: 'p4-kr21b', type: 'KR', pillar: 'P4', team: 'QA', subject: 'QA KR 2 — Process Improvement', metric: 'Count', pic: 'Marlin', yearlyTarget: '4', q1Target: '1', q2Target: '1', q3Target: '1', q4Target: '1', status: 'On Track' },
-  { id: 'p4-kr21c', type: 'KR', pillar: 'P4', team: 'QA', subject: 'QA KR 3 — Quality Coverage', metric: 'Count', pic: 'Marlin', yearlyTarget: '5', q1Target: '1', q2Target: '1', q3Target: '2', q4Target: '1', status: 'On Track' },
+  { id: 'p4-kr21', type: 'KR', pillar: 'P4', team: 'QA', subject: 'Delivery Reliability', metric: '% projects delivered on-time without quality issues', pic: 'Marlin', yearlyTarget: '90%', q1Target: '90%', q2Target: '90%', q3Target: '90%', q4Target: '90%', actual: '0', status: 'Below' },
   { id: 'p4-kr22', type: 'KR', pillar: 'P4', team: 'Marketing', subject: 'Marketing Spend Control', metric: '% Budget', pic: 'Hisyam', yearlyTarget: '95%', q1Target: '95%', q2Target: '95%', q3Target: '95%', q4Target: '95%', actual: '95%', status: 'On Track' },
 ];
 
@@ -219,7 +217,7 @@ export const INITIATIVES: Initiative[] = [
   { id: 'init-601', title: 'AI with Human Touch — Art Pipeline', phase: 'PLAN', pic: 'Adi', linkedOKR: 'P4', linkedOKRLabel: 'P4: Cost Efficiency', priority: 'High', startDate: '2026-01-01', dueDate: '2026-01-30', description: 'Develop 2 AI-with-human-touch standards for the Art pipeline; train artist crew. (Notion #601)' },
   { id: 'init-605', title: 'AI with Human Touch — Production Pipeline', phase: 'PLAN', pic: 'Adi', linkedOKR: 'P4', linkedOKRLabel: 'P4: Cost Efficiency', priority: 'High', startDate: '2026-01-01', dueDate: '2026-01-30', description: 'Develop 3 AI-with-human-touch standards for the Production pipeline. (Notion #605)' },
   { id: 'init-620', title: 'Improve Development Documentation & Feature Bank', phase: 'PLAN', pic: 'Thommi', linkedOKR: 'P4', linkedOKRLabel: 'P4: Cost Efficiency', priority: 'Medium', startDate: '2026-01-01', dueDate: '2026-03-31', description: 'Improve development documentation and align feature bank for design consistency and cost efficiency. (Notion #620)' },
-  { id: 'init-642', title: 'QA Freelance Model Optimization', phase: 'PLAN', pic: 'Marlin', linkedOKR: 'P4', linkedOKRLabel: 'P4: Cost Efficiency', priority: 'Medium', startDate: '2026-01-01', dueDate: '2026-09-01', description: 'Optimize QA freelance model, reduce monthly QA expenses, and track QA freelancer performance metrics. (Notion #642)' },
+  { id: 'init-642', title: 'Delivery Reliability — QA Quality Gate', phase: 'DO', pic: 'Marlin', linkedOKR: 'P4', linkedOKRLabel: 'P4: Cost Efficiency', priority: 'High', startDate: '2026-01-01', dueDate: '2026-03-31', description: 'Ensure 90% of all projects are delivered on-time without quality issues in Q1 2026. Define QA quality gate criteria, implement pre-release checklist, track and report delivery reliability per project. (OKR p4-kr21)' },
 
   // ── Putri F.: Art Director — AI Art Pipeline ──────────────────────────────
   { id: 'init-putri-1', title: 'AI Art Pipeline — Concept Art Implementation', phase: 'DO', pic: 'Putri F.', linkedOKR: 'P4', linkedOKRLabel: 'P4: Cost Efficiency', priority: 'High', startDate: '2026-01-01', dueDate: '2026-06-30', description: 'Implement AI-with-human-touch pipeline for Concept Art: standardize AI tool usage, document workflow, achieve 50% AI-assisted pipeline by Q1 and 100% by Q2. (OKR p4-kr17)' },
@@ -374,17 +372,10 @@ export const PERSON_KPIS: Record<string, PersonKPI[]> = {
     { perspective: 'Internal', name: 'GF Art Style Book Progress (P2)', weight: 15, uom: '%', l1: 20, l2: 40, l3: 80, l4: 90, l5: 100, actual: 0, level: 'L1', higherIsBetter: true },
     { perspective: 'Learning', name: 'Team AI Tools Adoption (P4-KR18)', weight: 15, uom: '%', l1: 10, l2: 25, l3: 50, l4: 70, l5: 90, actual: 0, level: 'L1', higherIsBetter: true },
   ],
-  // ── QA Lead: P4 Quality & Cost ───────────────────────────────────────
+  // ── QA Lead: single KR — Delivery Reliability ───────────────────────
   marlin: [
-    // P4-KR: QA automation — Not Started
-    { perspective: 'Financial', name: 'QA Automation Cost Saving (P4-KR)', weight: 15, uom: '%', l1: 10, l2: 20, l3: 30, l4: 40, l5: 50, actual: 0, level: 'L1', higherIsBetter: true },
-    { perspective: 'Customer', name: 'Post-Release Bug Rate', weight: 20, uom: 'Bugs', l1: 15, l2: 10, l3: 7, l4: 4, l5: 2, actual: 0, level: 'L1', higherIsBetter: false },
-    { perspective: 'Customer', name: 'UAT Pass Rate', weight: 15, uom: '%', l1: 70, l2: 80, l3: 85, l4: 90, l5: 95, actual: 0, level: 'L1', higherIsBetter: true },
-    { perspective: 'Internal', name: 'Test Coverage', weight: 15, uom: '%', l1: 40, l2: 55, l3: 70, l4: 80, l5: 90, actual: 0, level: 'L1', higherIsBetter: true },
-    { perspective: 'Internal', name: 'Bug Resolution Time', weight: 15, uom: 'Hrs', l1: 72, l2: 48, l3: 24, l4: 16, l5: 8, actual: 0, level: 'L1', higherIsBetter: false },
-    // P4-KR: QA automation rate — Not Started
-    { perspective: 'Internal', name: 'QA Automation Rate (P4-KR)', weight: 10, uom: '%', l1: 10, l2: 25, l3: 40, l4: 55, l5: 70, actual: 0, level: 'L1', higherIsBetter: true },
-    { perspective: 'Learning', name: 'Testing Tools Mastery', weight: 10, uom: '%', l1: 30, l2: 50, l3: 65, l4: 80, l5: 95, actual: 0, level: 'L1', higherIsBetter: true },
+    // P4-KR21: Delivery Reliability — Q1 target 90%
+    { perspective: 'Internal', name: 'Delivery Reliability (P4-KR21)', weight: 100, uom: '%', l1: 50, l2: 70, l3: 90, l4: 95, l5: 100, actual: 0, level: 'L1', higherIsBetter: true },
   ],
   // ── Marketing: P2/P3 Leads & Campaigns ──────────────────────────────
   hisyam: [
