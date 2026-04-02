@@ -553,8 +553,11 @@ export function derivePersonKPIsFromOKR(
     });
   }
 
-  // If no KRs found for this person/quarter, fall back to static PERSON_KPIS
-  return result.length > 0 ? result : (PERSON_KPIS[personId] ?? []);
+  // Prefer static PERSON_KPIS when defined (they have full BSC scorecard);
+  // only use OKR-derived KRs when no static data exists for this person.
+  const staticKPIs = PERSON_KPIS[personId];
+  if (staticKPIs && staticKPIs.length > 0) return staticKPIs;
+  return result.length > 0 ? result : crewTaskKPI();
 }
 
 // ─── KPI Submission Data ──────────────────────────────────────────────────────
@@ -572,14 +575,8 @@ export interface KPISubmission {
   scores: Record<string, { actual: number; level: string; evidence: string; note: string; attachments: Array<{ name: string; size: string }> }>;
 }
 
-export const INITIAL_SUBMISSIONS: KPISubmission[] = [
-  { id: 1, person: 'auliya',  quarter: 'Q1', status: 'Pending',  submittedAt: '2026-03-20', reviewedAt: null,         reviewer: null,       kpiCount: 8, comments: '', scores: {} },
-  { id: 2, person: 'bima',    quarter: 'Q1', status: 'Approved', submittedAt: '2026-03-18', reviewedAt: '2026-03-22', reviewer: 'junialdi', kpiCount: 7, comments: '', scores: {} },
-  { id: 3, person: 'sandi',   quarter: 'Q1', status: 'Pending',  submittedAt: '2026-03-21', reviewedAt: null,         reviewer: null,       kpiCount: 8, comments: '', scores: {} },
-  { id: 4, person: 'thommi',  quarter: 'Q1', status: 'Draft',    submittedAt: null,         reviewedAt: null,         reviewer: null,       kpiCount: 7, comments: '', scores: {} },
-  { id: 5, person: 'adi',     quarter: 'Q1', status: 'Revision', submittedAt: '2026-03-15', reviewedAt: '2026-03-19', reviewer: 'junialdi', kpiCount: 8, comments: 'Please provide evidence for Server Cost Optimization KPI — the actual figure needs supporting documentation.', scores: {} },
-  { id: 6, person: 'marlin',  quarter: 'Q1', status: 'Approved', submittedAt: '2026-03-17', reviewedAt: '2026-03-20', reviewer: 'junialdi', kpiCount: 7, comments: '', scores: {} },
-];
+// Empty — all submissions start from scratch; no pre-filled/sample data
+export const INITIAL_SUBMISSIONS: KPISubmission[] = [];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -1589,8 +1589,10 @@ export function KPISubmissionView() {
     ? resolvePersonId(currentUser.id, currentUser.name)
     : null;
 
-  // Only admin has full access (history, approval, any person selector)
-  const canApprove = isAdmin;
+  // Junialdi (admin) and Auliya have full access to all tabs
+  const resolvedCurrentId = currentUser ? resolvePersonId(currentUser.id, currentUser.name) : null;
+  const isPrivileged = isAdmin || resolvedCurrentId === 'auliya';
+  const canApprove = isAdmin; // only Junialdi approves
 
   const [activeTab, setActiveTab] = useState<Tab>('submit');
   const [selectedPerson, setSelectedPerson] = useState<string>(lockedPersonId ?? 'junialdi');
@@ -1607,11 +1609,11 @@ export function KPISubmissionView() {
 
   const tabs = [
     { id: 'submit' as Tab, label: 'Submit KPI', icon: '📝' },
-    { id: 'review360' as Tab, label: '360° Review', icon: '🔄' },
-    ...(isAdmin ? [{ id: 'history' as Tab, label: 'History', icon: '📋' }] : []),
+    ...(isPrivileged ? [{ id: 'review360' as Tab, label: '360° Review', icon: '🔄' }] : []),
+    ...(isPrivileged ? [{ id: 'history' as Tab, label: 'History', icon: '📋' }] : []),
     ...(canApprove ? [{ id: 'approval' as Tab, label: 'Approval Queue', icon: '✅' }] : []),
-    { id: 'kpimap' as Tab, label: 'KPI Map', icon: '🗺' },
-    { id: 'report' as Tab, label: 'Dev Report', icon: '📊' },
+    ...(isPrivileged ? [{ id: 'kpimap' as Tab, label: 'KPI Map', icon: '🗺' }] : []),
+    ...(isPrivileged ? [{ id: 'report' as Tab, label: 'Dev Report', icon: '📊' }] : []),
   ];
 
   const dropKey = `${selectedPerson}-${selectedQuarter}`;
