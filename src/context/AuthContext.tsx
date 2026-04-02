@@ -15,8 +15,8 @@ function generateCode(): string {
 function generateDefaultCodes(): Record<string, string> {
   const codes: Record<string, string> = {};
   for (const member of CREW_MEMBERS) {
-    // Admin gets a memorable fixed code
-    codes[member.id] = member.isAdmin ? 'CUAN0' : generateCode();
+    // Use fixed code from crew data if defined, otherwise generate random
+    codes[member.id] = member.code ?? (member.isAdmin ? 'CUAN0' : generateCode());
   }
   return codes;
 }
@@ -53,17 +53,16 @@ function loadState(): AuthState {
     const verifyCodes = codesJson ? JSON.parse(codesJson) : generateDefaultCodes();
     const currentUser = userId ? CREW_MEMBERS.find(m => m.id === userId) || null : null;
 
-    // Ensure every CREW_MEMBER has a code — new members added after first init won't have one
-    let codesUpdated = !codesJson; // force save if codes were just generated
+    // Ensure every CREW_MEMBER has a code; always honour fixed codes in crew data
+    let codesUpdated = !codesJson;
     for (const member of CREW_MEMBERS) {
-      if (member.isAdmin) {
-        // Admin always uses fixed code
-        if (verifyCodes[member.id] !== 'CUAN0') {
-          verifyCodes[member.id] = 'CUAN0';
+      const fixedCode = member.code ?? (member.isAdmin ? 'CUAN0' : null);
+      if (fixedCode) {
+        if (verifyCodes[member.id] !== fixedCode) {
+          verifyCodes[member.id] = fixedCode;
           codesUpdated = true;
         }
       } else if (!verifyCodes[member.id]) {
-        // New member added after localStorage was initialized — generate a code now
         verifyCodes[member.id] = generateCode();
         codesUpdated = true;
       }
